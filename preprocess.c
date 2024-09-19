@@ -14,6 +14,16 @@ char* strncpy(char *s, const char *t, int n)
   return os;
 }
 
+int
+strncmp(const char *p, const char *q, uint n)
+{
+  while(n > 0 && *p && *p == *q)
+    n--, p++, q++;
+  if(n == 0)
+    return 0;
+  return (uchar)*p - (uchar)*q;
+}
+
 char* findVariable(char* str){
     int len = strlen(str);
     if(len<=2){
@@ -78,6 +88,51 @@ char* findValue(char* str){
     return res;
 }
 
+int ispunct(int ch){
+    if(ch=='!' || ch=='?' || ch==',' || ch=='.')
+        return 1;
+    else
+        return 0;
+}
+
+char* formString(char* buf, int start, int length) {
+    char* str = malloc(sizeof(char) * (length + 1));
+    strncpy(str, &buf[start], length);
+    str[length] = '\0';
+    return str;
+}
+
+char* replaceValues(char* buf, int size, char* variable, char* value) {
+    int variable_length = strlen(variable); 
+    int value_length = strlen(value);
+    
+    
+    char temp_buf[1024];  
+    int temp_size = 0;    
+    
+    for (int i = 0; i < size; i++) {
+        if (i <= size - variable_length && strncmp(&buf[i], variable, variable_length) == 0) {
+            for (int j = 0; j < value_length; j++) {
+                temp_buf[temp_size++] = value[j];
+            }
+            i += variable_length - 1;
+        } 
+        else {
+            temp_buf[temp_size++] = buf[i];
+        }
+    }
+
+    temp_buf[temp_size] = '\0';  
+
+    for (int i = 0; i < temp_size; i++) {
+        buf[i] = temp_buf[i];
+    }
+
+    buf[temp_size] = '\0';
+
+    return buf;
+}
+
 
 int replaceAndWrite(int i, char* buf, int size, int argc, char* argv[]){
     for(int i=2;i<argc;i++){
@@ -90,8 +145,9 @@ int replaceAndWrite(int i, char* buf, int size, int argc, char* argv[]){
         if(value == (char*)'1'){
             printf(1, "Error parsing value.\n");
         }
-        printf(1, "Variable: %s\n",variable);
-        printf(1,"Value: %s\n",value);
+        // printf(1, "Variable: %s\n",variable);
+        // printf(1,"Value: %s\n",value);
+        replaceValues(buf,size,variable,value);
     }
     return write(i,buf,size);
 }

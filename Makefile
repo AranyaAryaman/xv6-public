@@ -185,7 +185,7 @@ UPROGS=\
 	_preprocess\
 
 fs.img: mkfs README $(UPROGS)
-	./mkfs fs.img README $(UPROGS)
+	./mkfs fs.img README data.txt $(UPROGS)
 
 -include *.d
 

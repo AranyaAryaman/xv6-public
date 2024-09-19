@@ -102,6 +102,44 @@ char* formString(char* buf, int start, int length) {
     return str;
 }
 
+/*
+char* replaceValues(char* buf, int size, char* variable, char* value) {
+    int variable_length = strlen(variable); 
+    int value_length = strlen(value);
+    
+    char temp_buf[512];  
+    int temp_size = 0;   
+    
+    for(int i=0;i<size;i++){
+        while(i<size && (buf[i]==' ' || ispunct(buf[i]))){
+            i++;
+        }
+        int curr_word_start=i;
+        int curr_word_length=0;
+        while(i<size && (buf[i]!=' ' || ispunct(buf[i]))){
+            i++;
+            curr_word_length++;
+        }
+        int curr_word_end=i-1;
+        char* curr_word = formString(buf,curr_word_start,curr_word_length);
+        if(strlen(curr_word)==variable_length && strncmp(curr_word,variable,variable_length)==0){
+            strncpy(&temp_buf[temp_size],&buf[curr_word_start],curr_word_length);
+        }
+
+    }
+
+    temp_buf[temp_size] = '\0';  
+
+    for (int i = 0; i < temp_size; i++) {
+        buf[i] = temp_buf[i];
+    }
+
+    buf[temp_size] = '\0';
+
+    return buf;
+}
+*/
+
 char* replaceValues(char* buf, int size, char* variable, char* value) {
     int variable_length = strlen(variable); 
     int value_length = strlen(value);

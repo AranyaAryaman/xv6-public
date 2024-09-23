@@ -98,7 +98,7 @@ char* findValue(char* str){
 }
 
 int ispunct(int ch){
-    if(ch=='!' || ch=='?' || ch==',' || ch=='.')
+    if(ch=='!' || ch=='?' || ch==',' || ch=='.' || ch ==';' || ch==':' || ch=='"')
         return 1;
     else
         return 0;

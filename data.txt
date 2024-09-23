@@ -1,1 +1,1 @@
-int x = VAR1 + VAR2
+char* message = MESSAGE;

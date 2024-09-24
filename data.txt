@@ -1,1 +1,13 @@
-char* message = MESSAGE;
+#define  
+Hello Sam!
+I am your AI assistant and I am here to help.
+Please ask me all your questions!
+
+#define NAME "TechOnTheNet.com"
+#define AGE 10
+
+int main()
+{
+   printf("%s is over %d years old.\n", NAME, AGE);
+   return 0;
+}

@@ -120,7 +120,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
-
+int             nice(int pid, int n);
+int		        cps(void);
 // swtch.S
 void            swtch(struct context**, struct context*);
 

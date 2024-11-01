@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
         else
         {
             printf(1, "Child %d created\n", getpid());
-            for (z = 0; z < 4000000000; z += 1)
+            for (z = 0; z < 1000.0; z += 0.01)  // Reduced upper limit
                 x = x + 3.14 * 89.64; // Useless calculation to consume CPU Time
             break;
         }

@@ -346,13 +346,9 @@ void scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      #ifdef DEFAULT
-            if (p->state != RUNNABLE)
-              continue;
-      #else
-      #ifdef PRIORITY
-
+    {            
+      #ifdef SCHEDPOLICY_PRIORITY
+            // panic("Aranya\n");
             struct proc *highP = 0;
             struct proc *p1 = 0;
 
@@ -369,8 +365,10 @@ void scheduler(void)
             if (highP != 0)
               p = highP;
 
-      #else
-      #endif
+      #elif defined(SCHEDPOLICY_DEFAULT)
+        // panic("Aryaman\n");
+        if (p->state != RUNNABLE)
+              continue;
       #endif
 
       if (p != 0)
@@ -394,6 +392,7 @@ void scheduler(void)
     release(&ptable.lock);
   }
 }
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores

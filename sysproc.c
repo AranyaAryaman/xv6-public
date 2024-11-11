@@ -7,6 +7,8 @@
 #include "mmu.h"
 #include "proc.h"
 
+#define NUM_RESOURCES 7
+
 int
 sys_fork(void)
 {
@@ -90,14 +92,24 @@ sys_uptime(void)
   return xticks;
 }
 
-int sys_nice(void)
+int
+sys_nice(void)
 {
-  int pid, pr;
-  if(argint(0, &pid) < 0)
-    return -1;
-  if(argint(1, &pr) < 0)
-    return -1;
-
+  int pid = 0;
+  int pr;
+  
+  // Check if second argument exists
+  if(argint(1, &pr) < 0) {
+    // Only one argument - it's the priority for current process
+    if(argint(0, &pr) < 0)
+      return -1;
+    pid = myproc()->pid;  // Get current process pid
+  } else {
+    // Two arguments - first is pid, second is priority
+    if(argint(0, &pid) < 0)
+      return -1;
+  }
+  
   return nice(pid, pr);
 }
 
@@ -105,4 +117,34 @@ int
 sys_cps(void)
 {
   return cps();
+}
+
+int sys_resourcelock_acquire(void) {
+    int id;
+    if (argint(0, &id) < 0 || id < 0 || id >= NUM_RESOURCES)
+        return -1;
+
+    struct proc *p = myproc();
+    p->lock_id = id;
+    return resourcelock_acquire(id);
+}
+
+int sys_resourcelock_release(void) {
+    int id;
+    if (argint(0, &id) < 0 || id < 0 || id >= NUM_RESOURCES)
+        return -1;
+
+    struct proc *p = myproc();
+    if (p->lock_id != id)
+        return -1;
+
+    p->lock_id = -1;
+    return resourcelock_release(id);
+}
+
+int sys_getpr(void){
+    int pid;
+    if(argint(0, &pid) < 0)
+      return myproc()->priority;
+    return getpr(pid);
 }

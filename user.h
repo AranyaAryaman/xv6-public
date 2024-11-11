@@ -25,6 +25,9 @@ int sleep(int);
 int uptime(void);
 int nice(int pid, int n);
 int	cps(void);
+int resourcelock_acquire(int);
+int resourcelock_release(int);
+int getpr(int pid);
 
 // ulib.c
 int stat(const char*, struct stat*);

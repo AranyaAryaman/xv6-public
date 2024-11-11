@@ -122,6 +122,9 @@ void            wakeup(void*);
 void            yield(void);
 int             nice(int pid, int n);
 int		        cps(void);
+int             resourcelock_acquire(int);
+int             resourcelock_release(int);
+int             getpr(int pid);
 // swtch.S
 void            swtch(struct context**, struct context*);
 

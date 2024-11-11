@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define NUM_RESOURCES 7
+
 struct
 {
   struct spinlock lock;
@@ -14,6 +16,12 @@ struct
 } ptable;
 
 static struct proc *initproc;
+
+struct {
+  struct spinlock lock;
+  int locked;
+  struct proc *holder;
+} resourcelocks[NUM_RESOURCES];
 
 int nextpid = 1;
 extern void forkret(void);
@@ -24,6 +32,11 @@ static void wakeup1(void *chan);
 void pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  for (int i = 0; i < NUM_RESOURCES; i++) {
+    initlock(&resourcelocks[i].lock, "resourcelock");
+    resourcelocks[i].locked = 0;
+    resourcelocks[i].holder = 0;
+  }
 }
 
 // Must be called with interrupts disabled
@@ -51,6 +64,19 @@ mycpu(void)
       return &cpus[i];
   }
   panic("unknown apicid\n");
+}
+
+void inherit_priority(struct proc *p) {
+    acquire(&ptable.lock);
+    struct proc *current = p;
+    while (current->blocked_by) {
+        struct proc *blocker = current->blocked_by;
+        if (blocker->priority <= current->priority)
+            break;
+        blocker->priority = current->priority;
+        current = blocker;
+    }
+    release(&ptable.lock);
 }
 
 // Disable interrupts so that we are not rescheduled
@@ -91,6 +117,9 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->priority = 3;
+  p->original_priority = 3;
+  p->blocked_by = 0;
+  p->lock_id = -1;
 
   release(&ptable.lock);
 
@@ -333,66 +362,55 @@ int wait(void)
 //       via swtch back to the scheduler.
 void scheduler(void)
 {
-  struct proc *p, *p1;
+  struct proc *p = 0;
   struct cpu *c = mycpu();
   c->proc = 0;
 
-  for (;;)
+  for(;;)
   {
-    // Enable interrupts on this processor.
-    sti();
-    struct proc *highP;
+    sti(); // Enable interrupts on this processor.
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {            
-      #ifdef SCHEDPOLICY_PRIORITY
-            // panic("Aranya\n");
-            struct proc *highP = 0;
-            struct proc *p1 = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      #ifdef DEFAULT
+        if(p->state != RUNNABLE)
+          continue;
 
-            if (p->state != RUNNABLE)
-              continue;
-            // Choose the process with highest priority (among RUNNABLEs)
-            highP = p;
-            for (p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++)
-            {
-              if ((p1->state == RUNNABLE) && (highP->priority > p1->priority))
-                highP = p1;
-            }
+      #else
+      #ifdef PRIORITY
+        struct proc *highP = 0;
+        struct proc *p1 = 0;
 
-            if (highP != 0)
-              p = highP;
+        if(p->state != RUNNABLE)
+          continue;
 
-      #elif defined(SCHEDPOLICY_DEFAULT)
-        // panic("Aryaman\n");
-        if (p->state != RUNNABLE)
-              continue;
-      #endif
+        highP = p; // Initialize highP to the current process
+        for(p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++) {
+          if((p1->state == RUNNABLE) && (highP->priority > p1->priority))
+            highP = p1;
+        }
+        p = highP; // Select the process with the highest priority
 
-      if (p != 0)
+      #endif // PRIORITY
+      #endif // DEFAULT
+
+      // Run the selected process `p`
+      if(p != 0 && p->state == RUNNABLE)
       {
-
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
-
+        
         swtch(&(c->scheduler), p->context);
         switchkvm();
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
+        
         c->proc = 0;
       }
     }
     release(&ptable.lock);
   }
 }
-
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -451,14 +469,15 @@ void forkret(void)
 
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
-void sleep(void *chan, struct spinlock *lk)
+void
+sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-
-  if (p == 0)
+  
+  if(p == 0)
     panic("sleep");
 
-  if (lk == 0)
+  if(lk == 0)
     panic("sleep without lk");
 
   // Must acquire ptable.lock in order to
@@ -467,23 +486,37 @@ void sleep(void *chan, struct spinlock *lk)
   // guaranteed that we won't miss any wakeup
   // (wakeup runs with ptable.lock locked),
   // so it's okay to release lk.
-  if (lk != &ptable.lock)
-  {                        // DOC: sleeplock0
-    acquire(&ptable.lock); // DOC: sleeplock1
+  if(lk != &ptable.lock){  //DOC: sleeplock0
+    acquire(&ptable.lock);  //DOC: sleeplock1
     release(lk);
   }
+
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+
+  // Implement priority inheritance for sleeping processes
+  if (lk != &ptable.lock) {
+    struct proc *pp;
+    for (pp = ptable.proc; pp < &ptable.proc[NPROC]; pp++) {
+      if (pp->state == RUNNING && pp->lock_id == (int)chan) {
+        p->blocked_by = pp;
+        if (p->priority < pp->priority) {
+          pp->priority = p->priority;
+        }
+        break;
+      }
+    }
+  }
 
   sched();
 
   // Tidy up.
   p->chan = 0;
+  p->blocked_by = 0;
 
   // Reacquire original lock.
-  if (lk != &ptable.lock)
-  { // DOC: sleeplock2
+  if(lk != &ptable.lock){  //DOC: sleeplock2
     release(&ptable.lock);
     acquire(lk);
   }
@@ -497,9 +530,15 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if (p->state == SLEEPING && p->chan == chan)
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      if (p->blocked_by != 0) {
+        p->blocked_by->priority = p->blocked_by->original_priority;
+        p->blocked_by = 0;
+      }
+      p->priority = p->original_priority;
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -571,24 +610,45 @@ void procdump(void)
   }
 }
 
-int nice(int pid, int n)
+int
+nice(int pid, int n)
 {
   struct proc *p;
   int old_priority = -1;
+  
+  // Clamp priority value between 1 and 5
+  if(n < 1) n = 1;
+  if(n > 5) n = 5;
+  
   acquire(&ptable.lock);
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if (p->pid == pid)
-    {
+  if(pid == myproc()->pid) {
+    // Changing priority of current process
+    old_priority = myproc()->priority;
+    // Only change priority if process is not holding any lock
+    if(myproc()->lock_id == -1) {
+      myproc()->priority = n;
+      myproc()->original_priority = n;
+    }
+    release(&ptable.lock);
+    return old_priority;
+  }
+  
+  // Search for process with given pid
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid) {
       old_priority = p->priority;
-      p->priority = n;
-      break;
+      // Only change priority if process is not holding any lock
+      if(p->lock_id == -1) {
+        p->priority = n;
+        p->original_priority = n;
+      }
+      release(&ptable.lock);
+      return old_priority;
     }
   }
+  
   release(&ptable.lock);
-  if (p == &ptable.proc[NPROC])
-    return -1;
-  return old_priority;
+  return -1;  // Process not found
 }
 
 int cps()
@@ -611,4 +671,62 @@ int cps()
   }
   release(&ptable.lock);
   return 22;
+}
+
+int getpr(int pid){
+  if(pid == myproc()->pid) 
+    return myproc()->priority;
+    
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if(p->pid == pid) {
+      return p->priority;
+    }
+  }
+  return -1;
+}
+
+int resourcelock_acquire(int id) {
+  acquire(&resourcelocks[id].lock);
+  while (resourcelocks[id].locked) {
+    if (resourcelocks[id].holder->priority > myproc()->priority) {
+      // Priority inversion detected, apply priority inheritance
+      cprintf("Priority inversion detected: PID %d (priority %d) waiting for PID %d (priority %d)\n",
+              myproc()->pid, myproc()->priority, resourcelocks[id].holder->pid, resourcelocks[id].holder->priority);
+      
+      resourcelocks[id].holder->original_priority = resourcelocks[id].holder->priority;
+      resourcelocks[id].holder->priority = myproc()->priority;
+      
+      cprintf("Priority inherited: PID %d priority changed from %d to %d\n",
+              resourcelocks[id].holder->pid, resourcelocks[id].holder->original_priority, resourcelocks[id].holder->priority);
+      
+      inherit_priority(resourcelocks[id].holder);
+    }
+    sleep(&resourcelocks[id], &resourcelocks[id].lock);
+  }
+  resourcelocks[id].locked = 1;
+  resourcelocks[id].holder = myproc();
+  cprintf("Lock %d acquired by PID %d (priority %d)\n", id, myproc()->pid, myproc()->priority);
+  release(&resourcelocks[id].lock);
+  return 0;
+}
+
+int resourcelock_release(int id) {
+  acquire(&resourcelocks[id].lock);
+  if (resourcelocks[id].holder != myproc()) {
+    release(&resourcelocks[id].lock);
+    return -1;
+  }
+  resourcelocks[id].locked = 0;
+  resourcelocks[id].holder = 0;
+  // Restore original priority
+  if (myproc()->priority != myproc()->original_priority) {
+    cprintf("Restoring priority: PID %d priority changed from %d to %d\n",
+            myproc()->pid, myproc()->priority, myproc()->original_priority);
+    myproc()->priority = myproc()->original_priority;
+  }
+  cprintf("Lock %d released by PID %d (priority %d)\n", id, myproc()->pid, myproc()->priority);
+  wakeup(&resourcelocks[id]);
+  release(&resourcelocks[id].lock);
+  return 0;
 }

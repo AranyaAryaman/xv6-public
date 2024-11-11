@@ -50,6 +50,9 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int priority;                // To store nice value
+  int lock_id;                 // For lock ID
+  int original_priority;       // Original priority before inheritance
+  struct proc *blocked_by;     // Process holding the lock this process is waiting for
 };
 
 // Process memory is laid out contiguously, low addresses first:

@@ -5,6 +5,7 @@
 
 int main(int argc, char *argv[])
 {
+    printf(1, "=== Test Case 0: Nice & Priority Scheduler ===\n");
     int pid;
     int k, n;
     int x, z;
@@ -39,5 +40,6 @@ int main(int argc, char *argv[])
             break;
         }
     }
+    printf(1, "=== Test Case 0 Completed ===\n");
     exit();
 }

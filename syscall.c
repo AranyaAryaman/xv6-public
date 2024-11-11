@@ -105,6 +105,9 @@ extern int sys_write(void);
 extern int sys_uptime(void);
 extern int sys_nice(void);
 extern int sys_cps(void);
+extern int sys_resourcelock_acquire(void);
+extern int sys_resourcelock_release(void);
+extern int sys_getpr(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -130,6 +133,9 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_nice]    sys_nice,
 [SYS_cps]     sys_cps,
+[SYS_resourcelock_acquire]  sys_resourcelock_acquire,
+[SYS_resourcelock_release]  sys_resourcelock_release,
+[SYS_getpr]   sys_getpr,
 };
 
 void

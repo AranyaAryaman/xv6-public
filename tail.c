@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
       printf(2, "tail: cannot open %s\n", filename);
       exit();
     }
+    n=n-1;
   }
 
   tail(fd, n);

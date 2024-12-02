@@ -28,6 +28,9 @@ int	cps(void);
 int resourcelock_acquire(int);
 int resourcelock_release(int);
 int getpr(int pid);
+int strace_run(int pid);
+void strace_on(void);
+void strace_off(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -25,3 +25,6 @@
 #define SYS_resourcelock_acquire  24  
 #define SYS_resourcelock_release  25  
 #define SYS_getpr  26
+#define SYS_strace_on  27
+#define SYS_strace_off 28
+#define SYS_strace_run 29

@@ -13,6 +13,10 @@
 // library system call function. The saved user %esp points
 // to a saved program counter, and then the first argument.
 
+int strace_active = 0;    // 1 if strace is ON, 0 otherwise
+int pid_to_trace = -1;    // PID of the process to trace (-1 means no specific PID)
+
+
 // Fetch the int at addr from the current process.
 int
 fetchint(uint addr, int *ip)
@@ -108,6 +112,9 @@ extern int sys_cps(void);
 extern int sys_resourcelock_acquire(void);
 extern int sys_resourcelock_release(void);
 extern int sys_getpr(void);
+extern int sys_strace_on(void);
+extern int sys_strace_off(void);
+extern int sys_strace_run(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -136,6 +143,9 @@ static int (*syscalls[])(void) = {
 [SYS_resourcelock_acquire]  sys_resourcelock_acquire,
 [SYS_resourcelock_release]  sys_resourcelock_release,
 [SYS_getpr]   sys_getpr,
+[SYS_strace_on] sys_strace_on,
+[SYS_strace_off] sys_strace_off,
+[SYS_strace_run] sys_strace_run,
 };
 
 void
@@ -146,6 +156,9 @@ syscall(void)
 
   num = curproc->tf->eax;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+    if (strace_active && (pid_to_trace == -1 || pid_to_trace == curproc->pid)) {
+      cprintf("%d %s: syscall %s -> return value %d\n", curproc->pid, curproc->name, syscalls[num], curproc->tf->eax);
+    }
     curproc->tf->eax = syscalls[num]();
   } else {
     cprintf("%d %s: unknown sys call %d\n",

@@ -73,11 +73,20 @@ runcmd(struct cmd *cmd)
 
   case EXEC:
     ecmd = (struct execcmd*)cmd;
-    if(ecmd->argv[0] == 0)
-      exit();
-    exec(ecmd->argv[0], ecmd->argv);
+    if (ecmd->argv[0] == 0)
+        exit();
+
+    // Check if the command is "strace run"
+    if (strcmp(ecmd->argv[0], "strace") == 0 && ecmd->argv[1] != 0 && strcmp(ecmd->argv[1], "run") == 0 && ecmd->argv[2] != 0) {
+        strace_run(getpid()); // Enable tracing for this process
+        exec(ecmd->argv[2], &ecmd->argv[2]); // Run the traced command
+    } else {
+        exec(ecmd->argv[0], ecmd->argv); // Regular command execution
+    }
+
     printf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
+
 
   case REDIR:
     rcmd = (struct redircmd*)cmd;
@@ -163,6 +172,14 @@ main(void)
       if(chdir(buf+3) < 0)
         printf(2, "cannot cd %s\n", buf+3);
       continue;
+    }
+    if (strcmp(buf, "strace on\n") == 0) {
+        strace_on(); // Enable global tracing
+        continue;
+    }
+    if (strcmp(buf, "strace off\n") == 0) {
+        strace_off(); // Disable global tracing
+        continue;
     }
     if(fork1() == 0)
       runcmd(parsecmd(buf));

@@ -12,6 +12,8 @@ struct cpu {
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
+extern int strace_active;   // Trace flag
+extern int pid_to_trace;    // PID to trace (-1 means all processes)
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.

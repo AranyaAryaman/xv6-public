@@ -148,3 +148,24 @@ int sys_getpr(void){
       return myproc()->priority;
     return getpr(pid);
 }
+
+int sys_strace_on(void) {
+    strace_active = 1;
+    pid_to_trace = -1; // Trace all processes by default
+    return 0;
+}
+
+int sys_strace_off(void) {
+    strace_active = 0;
+    pid_to_trace = -1;
+    return 0;
+}
+
+
+int sys_strace_run(void) {
+    int pid;
+    if (argint(0, &pid) < 0)
+        return -1;
+    pid_to_trace = pid;
+    return 0;
+}

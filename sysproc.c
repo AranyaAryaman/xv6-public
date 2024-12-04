@@ -166,6 +166,7 @@ int sys_strace_run(void) {
     int pid;
     if (argint(0, &pid) < 0)
         return -1;
+    strace_active = 1;
     pid_to_trace = pid;
     return 0;
 }

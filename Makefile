@@ -194,8 +194,7 @@ UPROGS=\
 	_test2\
 	_test3\
 	_test4\
-    _test5\
-    _tail\
+   	_test5\
 	_dpro\
 
 fs.img: mkfs README $(UPROGS)
